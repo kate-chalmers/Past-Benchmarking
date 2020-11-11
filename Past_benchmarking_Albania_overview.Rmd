@@ -1,0 +1,675 @@
+---
+title: "Benchmarking the Past - Albania"
+author: "OECD Development Centre - MDCR Unit"
+date: "31/10/2020"
+output: html_document
+---
+
+This document is a summary of the results from the Benchmarking the Past algorithm for the country Albania. The algorithm seeks to identify comparison countries who had similar values to a country of interest's current value at some point in the past for some indicator of development. The matching comparison countries are then filtered further by a "goal" each of these countries have met which is defined explicitly for each indicator. 
+
+Finding matches in the past and seeing how they develop over time can help us find stories in the past, seek out effective policies and guide realistic goal-setting for countries today. 
+
+For the moment, the following indicators are available: <p>
+* Constant GDP per capita (2010 USD) <br>
+* Employment to population (%) <br>
+* Literacy rate (%) <br>
+* Mean years of schooling <br>
+* Percent of population without schooling <br>
+* Economic complexity index <br>
+* Output per worker (GDP constant 2010 USD) <br>
+
+________
+
+#### **Indicator:** Constant GDP per capita (2010 USD)
+##### **Source:** WDI
+
+**2019 Constant GDP per capita in Albania :** 5 209.36 USD <br>
+**Goal :** Double (2x)
+
+##### **Map of comparison countries**
+
+Below is a map populated with each country that met the matching criteria. 
+
+```{r , message=FALSE, class.source="bg-success", echo=FALSE}
+
+library(maps)
+library(rbokeh)
+library(readxl)
+library(dplyr)
+
+caps<-read_excel("~/OneDrive/OECD_Files_KChalmers/Past_Benchmarking/0_Indicator_Tables/map_figures.xlsx")
+gdp <- read_excel("~/OneDrive/OECD_Files_KChalmers/Past_Benchmarking/0_Indicator_Tables/2019_ALB_gdp.xlsx")
+names(gdp)[2]<-"country"
+
+clist <- gdp$country
+gdp$`Match value`<-round(gdp$`Match value`, digits=2)
+
+caps<-subset(caps, country %in% clist)
+info.cols<-gdp[,c(2,4,5,7)]
+caps<-left_join(info.cols,caps)
+
+colnames(caps)[1]<-"Country"
+
+figure(width = 800, height = 450, padding_factor = 0) %>%
+  ly_map("world", col = "gray", line_color="black",line_alpha=0.5,fill_alpha=0.75) %>%
+  ly_points(long, lat, data = caps, size = 10,
+            hover = c(Country,`Match value`,`Value at goal`,
+                      `Years to reach goal`,
+                      Employment,Population))
+
+```
+
+##### **Table output of comparison countries**
+
+This table is a summary of the results of the algorithm.
+
+```{r , message=FALSE, class.source="bg-success", echo=FALSE, figures-side, fig.show="hold", out.width="50%"} 
+
+library(readxl)
+library(ggplot2)
+library(foreach)
+library(dplyr)
+library(DT)
+
+# Upload excel of output of GDP function through changing file path
+gdp.output <- read_excel("~/OneDrive/OECD_Files_KChalmers/Past_Benchmarking/0_Indicator_Tables/2019_ALB_gdp.xlsx")
+
+# Data cleaning
+gdp.output <- gdp.output[,-1]
+gdp.output$`Match value`<-round(gdp$`Match value`, digits=2)
+gdp.output$`Value at goal`<-round(gdp$`Value at goal`, digits=2)
+
+# Data table of output
+DT::datatable(gdp.output, rownames = FALSE)
+
+```
+
+##### **Time series of comparison countries**
+
+These graphs show the full time series for the indicator, constant GDP per capita. The vertical dashed lines show the time window from which the country indicator value matched current day Albania until it surpasses its goal - doubling in this case. The dotted line is the time series for the country of interest, Albania. 
+
+```{r , message=FALSE, class.source="bg-success", echo=FALSE, fig.show="hold", out.width="50%"} 
+# Upload indicator database & output table
+ind.db<-read_excel("~/OneDrive/OECD_Files_KChalmers/Past_Benchmarking/indicator.db.xlsx")
+gdp.output <- read_excel("~/OneDrive/OECD_Files_KChalmers/Past_Benchmarking/0_Indicator_Tables/2019_ALB_gdp.xlsx")
+
+# Parse out time series
+indicator <- ind.db[,c(1:2,3)]
+names(indicator)[3]<-"value"
+indicator<-na.omit(indicator)
+
+cname <-gdp.output$`Comparison country`
+gdp.ts <- indicator[indicator$country %in% c("Albania",cname) ,]
+
+gdp.output <- gdp.output[order(gdp.output$`Comparison country`),]
+gdp.ts <- gdp.ts[order(gdp.ts$country),]
+
+# Set lists to create time series graphs
+myear <- gdp.output$`Match year`
+gyear <- gdp.output$`Year reached goal`
+
+# Split ts by country
+glist<-gdp.ts%>%
+  group_split(country)
+
+# Change COI # to the one of country of interest in glist then remove using same #
+COI <- glist[[1]]
+glist<-glist[-1]
+
+# Plotting function for every country 
+# **** IMPORTANT: Change here xlim to match length of time window 
+ts.plotter<-function(x){
+  vertical.lines <- c(myear[x],gyear[x])
+
+  ggplot(data = glist[[x]])  + theme_linedraw()+
+    geom_line(aes(y = value, x = year))+
+    geom_line(data = COI, aes(y=value, x=year), linetype=3,color="black")+
+    labs(title=cname[[x]], x="Year",y="Constant GDP per capita")+
+    theme(plot.title = element_text(hjust = 0.5))+
+    xlim(1960,2020)+
+    geom_vline(xintercept=vertical.lines,
+               linetype=2, colour="black")+
+    annotate("rect", xmin=myear[x], xmax =gyear[x], ymin=-Inf, ymax=Inf,alpha = .1)+
+    theme(axis.text = element_text(face="bold"))
+}
+
+# Plots graph for each country 
+# ** IMPORTANT: Here 21 will change by # of comparison countries
+gdp.plots<-foreach(x=1:21) %do%
+  ts.plotter(x)
+
+# Graph upload
+# ** IMPORTANT: Here # of plots will change by # of comparison countries (obs in envi)
+gdp.plots[[1]]
+gdp.plots[[2]]
+gdp.plots[[3]]
+
+gdp.plots[[4]]
+gdp.plots[[5]]
+gdp.plots[[6]]
+
+gdp.plots[[7]]
+gdp.plots[[8]]
+gdp.plots[[9]]
+
+gdp.plots[[10]]
+gdp.plots[[11]]
+gdp.plots[[12]]
+
+gdp.plots[[13]]
+gdp.plots[[14]]
+gdp.plots[[15]]
+
+gdp.plots[[16]]
+gdp.plots[[17]]
+gdp.plots[[18]]
+
+gdp.plots[[19]]
+gdp.plots[[20]]
+gdp.plots[[21]]
+
+```
+
+
+
+
+
+________
+
+#### **Indicator:** Employment to population (%)
+##### **Source:** WDI
+
+**2019 Employment in Albania :** 48.86% <br>
+**Goal :** 1.25x
+
+```{r , message=FALSE, class.source="bg-success", echo=FALSE}
+
+
+caps<-read_excel("~/OneDrive/OECD_Files_KChalmers/Past_Benchmarking/0_Indicator_Tables/map_figures.xlsx")
+emp <- read_excel("~/OneDrive/OECD_Files_KChalmers/Past_Benchmarking/0_Indicator_Tables/2019_ALB_employ.xlsx")
+names(emp)[2]<-"country"
+
+clist <- emp$country
+emp$`Match value`<-round(emp$`Match value`, digits=2)
+emp$`Value at goal`<-round(emp$`Value at goal`, digits=2)
+
+caps<-subset(caps, country %in% clist)
+info.cols<-emp[,c(2,4,5,7)]
+caps<-left_join(info.cols,caps)
+
+colnames(caps)[1]<-"Country"
+
+figure(width = 800, height = 450, padding_factor = 0) %>%
+  ly_map("world", col = "gray", line_color="black",line_alpha=0.5,fill_alpha=0.75) %>%
+  ly_points(long, lat, data = caps, size = 10,
+            hover = c(Country,`Match value`,`Value at goal`,
+                      `Years to reach goal`,
+                      Employment,Population))
+
+```
+
+
+```{r , message=FALSE, warning = FALSE, class.source="bg-success", echo=FALSE, fig.show="hold", out.width="50%"}
+library(readxl)
+emp.output <- read_excel("~/OneDrive/OECD_Files_KChalmers/Past_Benchmarking/0_Indicator_Tables/2019_ALB_employ.xlsx")
+
+emp.output <- emp.output[,-1]
+
+emp.output$`Match value`<-round(emp.output$`Match value`, digits=2)
+emp.output$`Value at goal`<-round(emp.output$`Value at goal`, digits=2)
+
+DT::datatable(emp.output, rownames = FALSE)
+
+ind.db<-read_excel("~/OneDrive/OECD_Files_KChalmers/Past_Benchmarking/indicator.db.xlsx")
+
+indicator <- ind.db[,c(1:2,4)]
+names(indicator)[3]<-"value"
+indicator<-na.omit(indicator)
+
+cname <-emp.output$`Comparison country`
+emp.ts <- indicator[indicator$country %in% c("Albania",cname) ,]
+
+emp.output <- emp.output[order(emp.output$`Comparison country`),]
+emp.ts <- emp.ts[order(gdp.ts$country),]
+
+myear <- emp.output$`Match year`
+gyear <- emp.output$`Year reached goal`
+
+glist<-emp.ts%>%
+  group_split(country)
+
+COI <- glist[[1]]
+glist<-glist[-1]
+
+ts.plotter<-function(x){
+  vertical.lines <- c(myear[x],gyear[x])
+
+  ggplot(data = glist[[x]])  + theme_linedraw()+
+    geom_line(aes(y = value, x = year))+
+    geom_line(data = COI, aes(y=value, x=year), linetype=3,color="black")+
+    labs(title=cname[[x]], x="Year",y="Employment to population (%)")+
+    theme(plot.title = element_text(hjust = 0.5))+
+    xlim(1991,2020)+
+   geom_vline(xintercept=vertical.lines,
+               linetype=2, colour="black")+
+    annotate("rect", xmin=myear[x], xmax =gyear[x], ymin=-Inf, ymax=Inf,alpha = .1)+
+    theme(axis.text = element_text(face="bold"))
+}
+
+emp.plots<-foreach(x=1:3) %do%
+  ts.plotter(x)
+
+emp.plots[[1]]
+emp.plots[[2]]
+emp.plots[[3]]
+
+```
+
+
+
+
+
+________
+#### **Indicator:** Literacy rate (%)
+##### **Source:** WDI
+
+**2018 literacy rate in Albania :** 98.1%<br>
+**Goal :** >98.1%
+
+Current value is too high to have comparisons - shows that the country is doing well for this indicator. 
+
+________
+
+#### **Indicator:** Mean years of schooling
+##### **Source:** Barro-Lee Education Attainment dataset
+
+**2010 mean years of schooling in Albania :** 9.85 years <br>
+**Goal :** 1.25x
+
+
+```{r , message=FALSE, class.source="bg-success", echo=FALSE}
+
+
+caps<-read_excel("~/OneDrive/OECD_Files_KChalmers/Past_Benchmarking/0_Indicator_Tables/map_figures.xlsx")
+myr <- read_excel("~/OneDrive/OECD_Files_KChalmers/Past_Benchmarking/0_Indicator_Tables/2019_ALB_meanyrs.xlsx")
+names(myr)[2]<-"country"
+
+clist <- myr$country
+myr$`Match value`<-round(myr$`Match value`, digits=2)
+
+caps<-subset(caps, country %in% clist)
+info.cols<-myr[,c(2,4,5,7)]
+caps<-left_join(info.cols,caps)
+
+colnames(caps)[1]<-"Country"
+
+figure(width = 800, height = 450, padding_factor = 0) %>%
+  ly_map("world", col = "gray", line_color="black",line_alpha=0.5,fill_alpha=0.75) %>%
+  ly_points(long, lat, data = caps, size = 10,
+            hover = c(Country,`Match value`,`Value at goal`,
+                      `Years to reach goal`,
+                      Employment,Population))
+
+```
+
+
+```{r , class.source="bg-success", echo=FALSE, fig.show="hold", out.width="50%", message=FALSE}
+myrs.output<- read_excel("~/OneDrive/OECD_Files_KChalmers/Past_Benchmarking/0_Indicator_Tables/2019_ALB_meanyrs.xlsx")
+
+myrs.output <- myrs.output[,-1]
+
+DT::datatable(myrs.output, rownames = FALSE)
+
+myrs.ts<- read_excel("~/OneDrive/OECD_Files_KChalmers/Past_Benchmarking/0_Indicator_Tables/2010_ALB_myrs_ts.xlsx")
+
+ind.db<-read_excel("~/OneDrive/OECD_Files_KChalmers/Past_Benchmarking/indicator.db.xlsx")
+
+indicator <- ind.db[,c(1:2,7)]
+names(indicator)[3]<-"value"
+indicator<-na.omit(indicator)
+
+cname <-myrs.output$`Comparison country`
+myrs.ts <- indicator[indicator$country %in% c("Albania",cname) ,]
+
+myrs.output <- myrs.output[order(myrs.output$`Comparison country`),]
+myrs.ts <- myrs.ts[order(myrs.ts$country),]
+
+myear <- myrs.output$`Match year`
+gyear <- myrs.output$`Year reached goal`
+
+glist<-myrs.ts%>%
+  group_split(country)
+
+COI <- glist[[1]]
+glist<-glist[-1]
+
+ts.plotter<-function(x){
+  vertical.lines <- c(myear[x],gyear[x])
+
+  ggplot(data = glist[[x]])  + theme_linedraw()+
+    geom_line(aes(y = value, x = year))+
+    geom_line(data = COI, aes(y=value, x=year), linetype=3,color="black")+
+    labs(title=cname[[x]], x="Year",y="Mean years of schooling")+
+    theme(plot.title = element_text(hjust = 0.5))+
+    xlim(1960,2010)+
+   geom_vline(xintercept=vertical.lines,
+               linetype=2, colour="black")+
+    annotate("rect", xmin=myear[x], xmax =gyear[x], ymin=-Inf, ymax=Inf,alpha = .1)+
+    theme(axis.text = element_text(face="bold"))
+}
+
+myrs.plots<-foreach(x=1:8) %do%
+  ts.plotter(x)
+
+myrs.plots[[1]]
+myrs.plots[[2]]
+myrs.plots[[3]]
+
+myrs.plots[[4]]
+myrs.plots[[5]]
+myrs.plots[[6]]
+
+myrs.plots[[7]]
+myrs.plots[[8]]
+
+
+```
+
+
+
+
+
+________
+
+#### **Indicator:** Percent of population without schooling
+##### **Source:** Barro-Lee Education Attainment dataset
+
+**2010 percentage of population with no schooling in Albania :**  3.86% <br>
+**Goal :** Half (-0.5x)
+
+```{r , message=FALSE, class.source="bg-success", echo=FALSE}
+
+caps<-read_excel("~/OneDrive/OECD_Files_KChalmers/Past_Benchmarking/0_Indicator_Tables/map_figures.xlsx")
+nskool <- read_excel("~/OneDrive/OECD_Files_KChalmers/Past_Benchmarking/0_Indicator_Tables/2019_ALB_noschool.xlsx")
+names(nskool)[2]<-"country"
+
+clist <- nskool$country
+nskool$`Match value`<-round(nskool$`Match value`, digits=2)
+
+caps<-subset(caps, country %in% clist)
+info.cols<-nskool[,c(2,4,5,7)]
+caps<-left_join(info.cols,caps)
+
+colnames(caps)[1]<-"Country"
+
+figure(width = 800, height = 450, padding_factor = 0) %>%
+  ly_map("world", col = "gray", line_color="black",line_alpha=0.5,fill_alpha=0.75) %>%
+  ly_points(long, lat, data = caps, size = 10,
+            hover = c(Country,`Match value`,`Value at goal`,
+                      `Years to reach goal`,
+                      Employment,Population))
+
+```
+
+```{r , message=FALSE, class.source="bg-success", echo=FALSE, fig.show="hold", out.width="50%"}
+noskl.output<-read_excel("~/OneDrive/OECD_Files_KChalmers/Past_Benchmarking/0_Indicator_Tables/2019_ALB_noschool.xlsx")
+
+noskl.output <- noskl.output[order(noskl.output$`Comparison country`),]
+noskl.output <- noskl.output[,-1]
+
+DT::datatable(noskl.output, rownames = FALSE)
+
+ind.db<-read_excel("~/OneDrive/OECD_Files_KChalmers/Past_Benchmarking/indicator.db.xlsx")
+
+indicator <- ind.db[,c(1:2,6)]
+names(indicator)[3]<-"value"
+indicator<-na.omit(indicator)
+
+cname <-noskl.output$`Comparison country`
+noskl.ts <- indicator[indicator$country %in% c("Albania",cname) ,]
+
+noskl.output <- noskl.output[order(noskl.output$`Comparison country`),]
+noskl.ts <- noskl.ts[order(noskl.ts$country),]
+
+myear <- noskl.output$`Match year`
+gyear <- noskl.output$`Year reached goal`
+
+glist<-noskl.ts%>%
+  group_split(country)
+
+COI <- glist[[1]]
+glist<-glist[-1]
+
+ts.plotter<-function(x){
+  vertical.lines <- c(myear[x],gyear[x])
+
+  ggplot(data = glist[[x]])  + theme_linedraw()+
+    geom_line(aes(y = value, x = year))+
+    geom_line(data = COI, aes(y=value, x=year), linetype=3,color="black")+
+    labs(title=cname[[x]], x="Year",y="Population without schooling (%)")+
+    theme(plot.title = element_text(hjust = 0.5))+
+    xlim(1960,2010)+
+   geom_vline(xintercept=vertical.lines,
+               linetype=2, colour="black")+
+    annotate("rect", xmin=myear[x], xmax =gyear[x], ymin=-Inf, ymax=Inf,alpha = .1)+
+    theme(axis.text = element_text(face="bold"))
+}
+
+noskl.plots<-foreach(x=1:15) %do%
+  ts.plotter(x)
+
+noskl.plots[[1]]
+noskl.plots[[2]]
+noskl.plots[[3]]
+
+noskl.plots[[4]]
+noskl.plots[[5]]
+noskl.plots[[6]]
+
+noskl.plots[[7]]
+noskl.plots[[8]]
+noskl.plots[[9]]
+
+noskl.plots[[10]]
+noskl.plots[[11]]
+noskl.plots[[12]]
+
+noskl.plots[[13]]
+noskl.plots[[14]]
+noskl.plots[[15]]
+
+```
+
+
+
+
+
+________
+#### **Indicator:** Economic complexity index 
+##### **Source:** OEC
+
+**2019 economic complexity in Albania :** -0.781571 <br>
+**Goal :** +0.5
+
+```{r , message=FALSE, class.source="bg-success", echo=FALSE}
+
+  
+caps<-read_excel("~/OneDrive/OECD_Files_KChalmers/Past_Benchmarking/0_Indicator_Tables/map_figures.xlsx")
+eci <- read_excel("~/OneDrive/OECD_Files_KChalmers/Past_Benchmarking/0_Indicator_Tables/2019_ALB_eci.xlsx")
+names(eci)[2]<-"country"
+
+clist <- eci$country
+eci$`Match value`<-round(eci$`Match value`, digits=2)
+
+caps<-subset(caps, country %in% clist)
+info.cols<-eci[,c(2,4,5,7)]
+caps<-left_join(info.cols,caps)
+
+colnames(caps)[1]<-"Country"
+
+figure(width = 800, height = 450, padding_factor = 0) %>%
+  ly_map("world", col = "gray", line_color="black",line_alpha=0.5,fill_alpha=0.75) %>%
+  ly_points(long, lat, data = caps, size = 10,
+            hover = c(Country,`Match value`,`Value at goal`,
+                      `Years to reach goal`,
+                      Employment,Population))
+
+```
+
+```{r , class.source="bg-success", echo=FALSE, fig.show="hold", out.width="50%", message=FALSE}
+eci.output<-read_excel("~/OneDrive/OECD_Files_KChalmers/Past_Benchmarking/0_Indicator_Tables/2019_ALB_eci.xlsx")
+
+eci.output <- eci.output[,-1]
+
+DT::datatable(eci.output, rownames = FALSE)
+
+ind.db<-read_excel("~/OneDrive/OECD_Files_KChalmers/Past_Benchmarking/indicator.db.xlsx")
+
+indicator <- ind.db[,c(1:2,8)]
+names(indicator)[3]<-"value"
+indicator<-na.omit(indicator)
+
+cname <-eci.output$`Comparison country`
+eci.ts <- indicator[indicator$country %in% c("Albania",cname) ,]
+
+eci.output <- eci.output[order(eci.output$`Comparison country`),]
+eci.ts <- eci.ts[order(eci.ts$country),]
+
+myear <- eci.output$`Match year`
+gyear <- eci.output$`Year reached goal`
+
+glist<-eci.ts%>%
+  group_split(country)
+
+COI <- glist[[1]]
+glist<-glist[-1]
+
+ts.plotter<-function(x){
+  vertical.lines <- c(myear[x],gyear[x])
+
+  ggplot(data = glist[[x]])  + theme_linedraw()+
+    geom_line(aes(y = value, x = year))+
+    geom_line(data = COI, aes(y=value, x=year), linetype=3,color="black")+
+    labs(title=cname[[x]], x="Year",y="Economic complexity index")+
+    theme(plot.title = element_text(hjust = 0.5))+
+    xlim(1964,2020)+
+   geom_vline(xintercept=vertical.lines,
+               linetype=2, colour="black")+
+    annotate("rect", xmin=myear[x], xmax =gyear[x], ymin=-Inf, ymax=Inf,alpha = .1)+
+    theme(axis.text = element_text(face="bold"))
+}
+
+eci.plots<-foreach(x=1:5) %do%
+  ts.plotter(x)
+
+eci.plots[[1]]
+eci.plots[[2]]
+eci.plots[[3]]
+
+eci.plots[[4]]
+eci.plots[[5]]
+
+```
+
+
+
+
+
+________
+#### **Indicator:** Output per worker (GDP constant 2010 USD)
+##### **Source:** ILO
+
+**2019 output per worker in Albania :**  12 955.88 USD <br>
+**Goal :** 1.5x
+
+```{r , message=FALSE, class.source="bg-success", echo=FALSE}
+
+
+caps<-read_excel("~/OneDrive/OECD_Files_KChalmers/Past_Benchmarking/0_Indicator_Tables/map_figures.xlsx")
+output <- read_excel("~/OneDrive/OECD_Files_KChalmers/Past_Benchmarking/0_Indicator_Tables/2019_ALB_lab.xlsx")
+names(output)[2]<-"country"
+
+clist <- output$country
+output$`Match value`<-round(output$`Match value`, digits=2)
+
+caps<-subset(caps, country %in% clist)
+info.cols<-output[,c(2,4,5,7)]
+caps<-left_join(info.cols,caps)
+
+colnames(caps)[c(1:4,7)]<-c("Country","Match.value","Years.to.reach.goal","Value.at.goal","Employment.rate")
+
+figure(width = 800, height = 450, padding_factor = 0) %>%
+  ly_map("world", col = "gray", line_color="black",line_alpha=0.5,fill_alpha=0.75) %>%
+  ly_points(long, lat, data = caps, size = 10,
+            hover = c(Country,Match.value, Value.at.goal,
+                      Years.to.reach.goal,
+                      Employment.rate,Population))
+
+```
+
+```{r , message=FALSE, class.source="bg-success", echo=FALSE, fig.show="hold", out.width="50%"}
+lab.output<-read_excel("~/OneDrive/OECD_Files_KChalmers/Past_Benchmarking/0_Indicator_Tables/2019_ALB_lab.xlsx")
+
+lab.output <- lab.output[,-1]
+
+lab.output$`Match value`<-round(lab.output$`Match value`, digits=2)
+DT::datatable(lab.output, rownames = FALSE)
+
+ind.db<-read_excel("~/OneDrive/OECD_Files_KChalmers/Past_Benchmarking/indicator.db.xlsx")
+
+indicator <- ind.db[,c(1:2,9)]
+names(indicator)[3]<-"value"
+indicator<-na.omit(indicator)
+
+cname <-lab.output$`Comparison country`
+lab.ts <- indicator[indicator$country %in% c("Albania",cname) ,]
+
+lab.output <- lab.output[order(lab.output$`Comparison country`),]
+lab.ts <- lab.ts[order(lab.ts$country),]
+
+myear <- lab.output$`Match year`
+gyear <- lab.output$`Year reached goal`
+
+glist<-lab.ts%>%
+  group_split(country)
+
+COI <- glist[[1]]
+glist<-glist[-1]
+
+ts.plotter<-function(x){
+  vertical.lines <- c(myear[x],gyear[x])
+
+  ggplot(data = glist[[x]])  + theme_linedraw()+
+    geom_line(aes(y = value, x = year))+
+    geom_line(data = COI, aes(y=value, x=year), linetype=3,color="black")+
+    labs(title=cname[[x]], x="Year",y="Output per worker (GDP constant 2010 USD)")+
+    theme(plot.title = element_text(hjust = 0.5),
+          axis.text = element_text(face="bold",size=10))+
+    xlim(1991,2020)+
+    geom_vline(xintercept=vertical.lines,
+               linetype=2, colour="black")+
+    annotate("rect", xmin=myear[x], xmax =gyear[x], ymin=-Inf, ymax=Inf,alpha = .1)
+}
+
+lab.plots<-foreach(x=1:11) %do%
+  ts.plotter(x)
+
+lab.plots[[1]]
+lab.plots[[2]]
+lab.plots[[3]]
+
+lab.plots[[4]]
+lab.plots[[5]]
+lab.plots[[6]]
+
+lab.plots[[7]]
+lab.plots[[8]]
+lab.plots[[9]]
+
+lab.plots[[10]]
+lab.plots[[11]]
+
+```
+
+
+

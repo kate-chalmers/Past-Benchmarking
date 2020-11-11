@@ -6,7 +6,7 @@ navbar:
     - text: "Home"
       href: index.html
     - text: "Albania"
-      href: Past_benchmarking_Albania_overview.html
+      href: Past_benchmarking_Albania_overview_git.html
 output:
   html_document:
     theme: cosmo

@@ -1,0 +1,12 @@
+name: "Past-Benchmarking"
+output_dir: "docs"
+navbar:
+  title: "Past Benchmarking"
+  left:
+    - text: "Home"
+      href: index.html
+    - text: "Albania"
+      href: Past_benchmarking_Albania_overview.html
+output:
+  html_document:
+    theme: cosmo
